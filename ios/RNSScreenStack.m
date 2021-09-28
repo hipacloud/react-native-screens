@@ -259,6 +259,27 @@
   }
 }
 
+// iOS 系统限制一个 ViewController 一次只能 present 一个子 Controller
+// 项目使用的 react-native-modal 库
+// 1. 在 Modal 打开时会 present 一个 RCTModalHostViewController，导致 Modal 后边的 RNSScreen 都无法 present 了（比如应用邀请 Modal 里的 PersonSelect），
+// 2. 这个方法会检测当前 RNSScreen 的子 Controller 类型，如果类型不是 RNSScreen 而是其它 Controller，那么这个其它 Controller 会作为新的父容器来 present 和 dismiss 后边的 RNSScreen
+- (UIViewController*)getPresentContainerController:(UIViewController *)controller {
+
+  UIViewController *rootController = controller;
+  UIViewController *parentController = controller;
+
+  while (rootController.presentedViewController) {
+    parentController = rootController;
+    rootController = rootController.presentedViewController;
+  }
+
+  if ([rootController isKindOfClass:[RNSScreen class]]) {
+    rootController = parentController;
+  }
+
+  return rootController;
+}
+
 - (void)setModalViewControllers:(NSArray<UIViewController *> *)controllers
 {
   // prevent re-entry
@@ -305,6 +326,8 @@
       RCTAssert(false, @"Modally presented controllers are being reshuffled, this is not allowed");
     }
   }
+
+  changeRootController = [self getPresentContainerController:changeRootController];
 
   __weak RNSScreenStackView *weakSelf = self;
 
